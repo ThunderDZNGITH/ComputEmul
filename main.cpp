@@ -458,8 +458,14 @@ void decodeParameters(uint8_t code[2]) {
 		updateFlags(*getReg(srcReg));
 		update();
 	}
+
+	if(opcode == OpCodes::JMP) {
+		ProgramCounter = params;
+		update();
+	}
 	
     std::cout << "Opcode: " << std::bitset<8>(opcode) << std::endl;
+	std::cout << std::hex << std::bitset<8>(opcode) << std::endl;
     std::cout << "Mod: " << std::bitset<2>(mod) << std::endl;
     std::cout << "Registre source: " << std::bitset<3>(srcReg) << std::endl;
     std::cout << "Registre destination: " << std::bitset<3>(destReg) << std::endl;
@@ -491,20 +497,42 @@ int main () {
 
     uint8_t code[2]; // Array to hold the pair of bytes
 
-    // Read the binary file byte by byte
-    while (!inputFile.eof()) {
-        // Read 2 bytes into the array
-        inputFile.read(reinterpret_cast<char*>(code), sizeof(code));
+	inputFile.seekg(0xFE, std::ios::beg);
 
-        // Check if we have read exactly 2 bytes
-        if (inputFile.gcount() == sizeof(code)) {
-            // Decode the parameters with the 2-byte array
-            decodeParameters(code);
-			ProgramCounter = ProgramCounter+2;
-            // Print the registers (assuming you want this here)
-            printRegisters();
-        }
+    if (!inputFile) {
+        std::cerr << "Erreur lors du déplacement dans le fichier." << std::endl;
+        return 1;
     }
+
+	unsigned char bytes[2];
+    inputFile.read(reinterpret_cast<char*>(&bytes), sizeof(bytes));
+	unsigned short combined = (bytes[0] << 8) | bytes[1];
+
+	if(combined == 0x55AA) {
+		//ProgramCounter = 504;
+		inputFile.seekg(0, std::ios::beg);
+		// Read the binary file byte by byte
+		int nbligne = 0;
+		while (!inputFile.eof() && ProgramCounter < 255) {
+			nbligne++;
+			inputFile.seekg(ProgramCounter, std::ios::beg);
+			// Read 2 bytes into the array
+			inputFile.read(reinterpret_cast<char*>(code), sizeof(code));
+
+			// Check if we have read exactly 2 bytes
+			if (inputFile.gcount() == sizeof(code)) {
+				// Decode the parameters with the 2-byte array
+				decodeParameters(code);
+				// Print the registers (assuming you want this here)
+				
+				printRegisters();
+				ProgramCounter = ProgramCounter+2;
+				std::cout << nbligne << std::endl;
+			}
+		}
+	} else {
+		std::cout << "No bootsector find" << std::endl;
+	}
 
     // Close the file
     inputFile.close();
